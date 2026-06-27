@@ -572,3 +572,95 @@ Kira sözleşmelerinin enflasyon ayarlaması için gerekli artış oranını hes
 📜 **Lisans**
 
 Bu proje MIT Lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakınız.
+
+## Advanced Turkish Capital Markets Data Sources
+
+This server now includes read-only tools for official Turkish capital-markets source discovery and investor/portfolio statistics. These tools preserve existing behavior and return source metadata (`source`, `source_url`, `as_of_date`, `fetched_at`, `confidence`, `warnings`) or a structured error when a source cannot be parsed reliably.
+
+> Disclaimer: outputs are not investment advice. Official data may be delayed, source pages and dynamic endpoints may change format, and users should verify critical figures with the official publisher.
+
+### SPK e-Veri Bankası catalogue
+
+Source: `https://spk.gov.tr/e-veri-bankasi`
+
+`get_spk_data_sources` treats SPK e-Veri Bankası as an official catalogue/source index, not as a direct market-data API. It lists official categories and linked institutions such as Aracı Kuruluşlar, Bankalar, Halka Açık Şirketler, Borsa İstanbul, Takasbank, MKK, KAP, TEFAS, TSPB, SPL, GEFAS, YTM, and TDUB when present.
+
+Example input:
+
+```json
+{}
+```
+
+Example output:
+
+```json
+{
+  "data_sources": [
+    {"category": "MKK", "institution": "MKK", "title": "MKK", "url": "https://...", "metadata": {"source": "SPK e-Veri Bankası", "source_url": "https://spk.gov.tr/e-veri-bankasi", "confidence": "high", "warnings": ["SPK e-Veri Bankası is treated as an official catalogue/source index, not a direct market-data API."]}}
+  ],
+  "metadata": {"source": "SPK e-Veri Bankası", "source_url": "https://spk.gov.tr/e-veri-bankasi"}
+}
+```
+
+### MKK / VAP investor data
+
+Source: `https://www.vap.org.tr/`
+
+Tools:
+
+* `get_equity_investor_summary` — market-level pay senedi investor count, market value, and domestic/foreign ownership ratios when discoverable.
+* `get_domestic_foreign_ownership` — domestic/foreign ownership records.
+* `get_top_stocks_by_investor_count` — returns official stock-level investor counts if exposed; otherwise returns `stock_level_investor_count_not_available`.
+* `get_stock_investor_trend` — returns official historical stock-level investor-count trends if exposed; otherwise returns `stock_level_investor_count_not_available`.
+
+Example input:
+
+```json
+{"symbol": "THYAO"}
+```
+
+Example structured unavailable response:
+
+```json
+{
+  "error": "stock_level_investor_count_not_available",
+  "message": "The current source exposes market-level investor data but not stock-level investor count.",
+  "source": "MKK / VAP",
+  "warnings": ["No volume, market-cap, popularity, or transaction-count proxy was substituted for investor count."]
+}
+```
+
+### Takasbank KYP institutional portfolio statistics
+
+Source: `https://www.takasbank.com.tr/tr/istatistikler/kurumsal-yatirimci-portfoy-istatistikleri-kyp`
+
+Takasbank KYP is treated as institutional portfolio/fund portfolio distribution data, separate from MKK individual investor-count data.
+
+Tools:
+
+* `get_takasbank_kyp_options` — returns available data type, institutional investor type, fund type, and date options discovered from the KYP page.
+* `get_institutional_portfolio_distribution` — portfolio asset-class distribution for an institutional investor type, optional fund type/date.
+* `get_fund_type_portfolio_sizes` — portfolio sizes by fund type.
+* `compare_institutional_investor_types` — compares categories such as Yatırım Fonları, Emeklilik Fonları, Gayrimenkul Yatırım Fonu, and Girişim Sermayesi Yatırım Fonu.
+* `get_institutional_equity_exposure` — filters parsed KYP rows to equity exposure when available.
+
+Example input:
+
+```json
+{"institutional_investor_type": "Yatırım Fonları", "fund_type": "Tümü"}
+```
+
+Example output:
+
+```json
+{
+  "records": [
+    {"data_type": "Portföy İçerik Dağılımı", "institutional_investor_type": "Yatırım Fonları", "fund_type": "Tümü", "asset_class": "Pay Senedi", "portfolio_size_try": 1234.5, "ratio": 12.3}
+  ],
+  "metadata": {"source": "Takasbank KYP", "source_url": "https://www.takasbank.com.tr/tr/istatistikler/kurumsal-yatirimci-portfoy-istatistikleri-kyp"}
+}
+```
+
+### HTTP caching and quality metadata
+
+External provider clients use provider-level `httpx.Client` instances with timeouts, retry attempts, realistic headers, graceful error handling, and a lightweight SQLite response cache under `.cache/http_cache.sqlite3`. Cached responses include source URL, fetched time, response body, content hash, status code, and expiry. If stale cached data must be used after a live fetch failure, the tool response includes a stale-data warning.
