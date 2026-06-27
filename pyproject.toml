@@ -42,3 +42,6 @@ include-package-data = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "live: tests that call live external data sources",
+]

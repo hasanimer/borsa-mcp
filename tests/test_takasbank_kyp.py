@@ -1,13 +1,13 @@
 from providers.takasbank.kyp import TakasbankKypProvider
 from storage.cache import CacheEntry
-from datetime import datetime
+from datetime import UTC, datetime
 
 class Client:
     def get_text(self, url):
         html='''<select><option>Tümü</option><option>Para Piyasası</option></select>
         Portföy İçerik Dağılımı Yatırım Fonları Emeklilik Fonları
         <table><tr><th>Pay Senedi</th><td>1.234,5</td><td>12,3</td></tr></table>'''
-        return html, CacheEntry(url, datetime.utcnow(), html, '', 200, False), []
+        return html, CacheEntry(url, datetime.now(UTC), html, '', 200, False), []
 
 def test_kyp_options_and_records():
     p=TakasbankKypProvider(Client())

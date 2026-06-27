@@ -1,10 +1,32 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+
+def _default_cache_dir() -> Path:
+    """Resolve a user-writable cache directory for Borsa MCP HTTP cache files."""
+    env_dir = os.getenv("BORSA_MCP_CACHE_DIR")
+    if env_dir:
+        return Path(env_dir).expanduser()
+
+    xdg_cache_home = os.getenv("XDG_CACHE_HOME")
+    if xdg_cache_home:
+        return Path(xdg_cache_home).expanduser() / "borsa-mcp"
+
+    local_app_data = os.getenv("LOCALAPPDATA")
+    if local_app_data:
+        return Path(local_app_data).expanduser() / "borsa-mcp" / "Cache"
+
+    return Path.home() / ".cache" / "borsa-mcp"
+
+
+def default_cache_path() -> Path:
+    return _default_cache_dir() / "http_cache.sqlite3"
 
 
 @dataclass
@@ -18,8 +40,8 @@ class CacheEntry:
 
 
 class SQLiteHttpCache:
-    def __init__(self, path: str | Path = ".cache/http_cache.sqlite3") -> None:
-        self.path = Path(path)
+    def __init__(self, path: str | Path | None = None) -> None:
+        self.path = Path(path).expanduser() if path is not None else default_cache_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -44,11 +66,13 @@ class SQLiteHttpCache:
             ).fetchone()
         if not row:
             return None
-        now = datetime.utcnow()
-        return CacheEntry(row[0], datetime.fromisoformat(row[1]), row[2], row[3], row[4], datetime.fromisoformat(row[5]) < now)
+        now = datetime.now(UTC)
+        fetched_at = datetime.fromisoformat(row[1])
+        expires_at = datetime.fromisoformat(row[5])
+        return CacheEntry(row[0], fetched_at, row[2], row[3], row[4], expires_at < now)
 
     def set(self, url: str, body: str, status_code: int, ttl_seconds: int) -> CacheEntry:
-        fetched_at = datetime.utcnow()
+        fetched_at = datetime.now(UTC)
         expires_at = fetched_at + timedelta(seconds=ttl_seconds)
         content_hash = hashlib.sha256(body.encode("utf-8", errors="ignore")).hexdigest()
         with sqlite3.connect(self.path) as conn:

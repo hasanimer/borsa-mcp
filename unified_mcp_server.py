@@ -1951,12 +1951,25 @@ async def get_regulations(
 
 
 # --- Advanced Turkish capital markets tools ---
-from tools import spk_sources as _spk_sources_tools
-from tools import investors as _investor_tools
-from tools import institutional_portfolios as _institutional_portfolio_tools
-_spk_sources_tools.register(app)
-_investor_tools.register(app)
-_institutional_portfolio_tools.register(app)
+def _safe_register(module_path: str) -> None:
+    """Import and register an optional tool module without creating server/tool circular imports."""
+    try:
+        import importlib
+
+        module = importlib.import_module(module_path)
+        register = getattr(module, "register")
+        register(app)
+    except Exception as exc:
+        logger.exception("Failed to register advanced tool module %s", module_path)
+        raise RuntimeError(f"Failed to register advanced tool module {module_path}: {exc}") from exc
+
+
+for _advanced_tool_module in (
+    "tools.spk_sources",
+    "tools.investors",
+    "tools.institutional_portfolios",
+):
+    _safe_register(_advanced_tool_module)
 
 # =============================================================================
 # MAIN ENTRY POINT

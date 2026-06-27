@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -12,7 +12,7 @@ class DataQualityMetadata(BaseModel):
     source: str
     source_url: str
     as_of_date: str | None = None
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     confidence: Confidence = "medium"
     warnings: list[str] = Field(default_factory=list)
 
@@ -22,7 +22,7 @@ class StructuredError(BaseModel):
     message: str
     source: str
     source_url: str | None = None
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     confidence: Confidence = "low"
     warnings: list[str] = Field(default_factory=list)
 

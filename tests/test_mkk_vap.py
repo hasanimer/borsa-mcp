@@ -1,12 +1,12 @@
 from providers.mkk.vap import MkkVapProvider
 from services.investor_service import InvestorService
 from storage.cache import CacheEntry
-from datetime import datetime
+from datetime import UTC, datetime
 
 class Client:
     def get_text(self, url):
         html='Pay senedi yatırımcı sayısı 1.234.567 Piyasa Değeri 2.500,50 Yabancı Oran 38,5'
-        return html, CacheEntry(url, datetime.utcnow(), html, '', 200, False), []
+        return html, CacheEntry(url, datetime.now(UTC), html, '', 200, False), []
 
 def test_mkk_equity_summary_parse():
     data=MkkVapProvider(Client()).market_summary()
