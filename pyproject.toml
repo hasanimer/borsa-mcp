@@ -29,7 +29,7 @@ borsa-mcp = "unified_mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["providers*", "models*"]
+include = ["providers*", "models*", "services*", "tools*", "domain*", "storage*"]
 
 [dependency-groups]
 dev = [

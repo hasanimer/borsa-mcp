@@ -13,12 +13,9 @@ _McpJSONRPCMessage.model_rebuild(force=True)
 # --- End MCP Spec Compliance ---
 
 import logging
-import os
-import ssl
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
-import urllib3
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware.caching import ResponseCachingMiddleware, CallToolSettings
@@ -29,15 +26,6 @@ from providers.response_shaper import strip_nulls, cap_evds_payload, downsample_
 from models.unified_base import (
     MarketType, StatementType, PeriodType, DataType, RatioSetType, ExchangeType
 )
-
-# Disable SSL verification globally to avoid certificate issues
-ssl._create_default_https_context = ssl._create_unverified_context
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Set yfinance to skip SSL verification
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-os.environ['CURL_CAINFO'] = ''
-os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -55,7 +43,7 @@ app = FastMCP(
     name="BorsaMCP",
     instructions="""Unified MCP server for BIST (Istanbul Stock Exchange), US stocks,
     cryptocurrencies, mutual funds, FX, and economic data.
-    Provides 28 consolidated tools covering stocks, crypto, funds, FX, macro data, and TCMB EVDS."""
+    Provides consolidated tools covering stocks, crypto, funds, FX, macro data, and TCMB EVDS."""
 )
 
 # --- Literal Types for Clean Schema ---
@@ -1962,6 +1950,14 @@ async def get_regulations(
         raise classify_tool_error(e, "Regulations fetch")
 
 
+# --- Advanced Turkish capital markets tools ---
+from tools import spk_sources as _spk_sources_tools
+from tools import investors as _investor_tools
+from tools import institutional_portfolios as _institutional_portfolio_tools
+_spk_sources_tools.register(app)
+_investor_tools.register(app)
+_institutional_portfolio_tools.register(app)
+
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
@@ -1970,7 +1966,7 @@ def main():
     """Main entry point for the unified MCP server."""
 
     # Log server startup
-    logger.info("Starting Unified BorsaMCP server with 28 tools")
+    logger.info("Starting Unified BorsaMCP server")
 
     # Run the server
     app.run()
