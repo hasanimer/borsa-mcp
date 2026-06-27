@@ -13,12 +13,9 @@ _McpJSONRPCMessage.model_rebuild(force=True)
 # --- End MCP Spec Compliance ---
 
 import logging
-import os
-import ssl
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
-import urllib3
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware.caching import ResponseCachingMiddleware, CallToolSettings
@@ -29,15 +26,6 @@ from providers.response_shaper import strip_nulls, cap_evds_payload, downsample_
 from models.unified_base import (
     MarketType, StatementType, PeriodType, DataType, RatioSetType, ExchangeType
 )
-
-# Disable SSL verification globally to avoid certificate issues
-ssl._create_default_https_context = ssl._create_unverified_context
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Set yfinance to skip SSL verification
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-os.environ['CURL_CAINFO'] = ''
-os.environ['REQUESTS_CA_BUNDLE'] = ''
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -55,7 +43,7 @@ app = FastMCP(
     name="BorsaMCP",
     instructions="""Unified MCP server for BIST (Istanbul Stock Exchange), US stocks,
     cryptocurrencies, mutual funds, FX, and economic data.
-    Provides 28 consolidated tools covering stocks, crypto, funds, FX, macro data, and TCMB EVDS."""
+    Provides consolidated tools covering stocks, crypto, funds, FX, macro data, and TCMB EVDS."""
 )
 
 # --- Literal Types for Clean Schema ---
@@ -1962,6 +1950,27 @@ async def get_regulations(
         raise classify_tool_error(e, "Regulations fetch")
 
 
+# --- Advanced Turkish capital markets tools ---
+def _safe_register(module_path: str) -> None:
+    """Import and register an optional tool module without creating server/tool circular imports."""
+    try:
+        import importlib
+
+        module = importlib.import_module(module_path)
+        register = getattr(module, "register")
+        register(app)
+    except Exception as exc:
+        logger.exception("Failed to register advanced tool module %s", module_path)
+        raise RuntimeError(f"Failed to register advanced tool module {module_path}: {exc}") from exc
+
+
+for _advanced_tool_module in (
+    "tools.spk_sources",
+    "tools.investors",
+    "tools.institutional_portfolios",
+):
+    _safe_register(_advanced_tool_module)
+
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
@@ -1970,7 +1979,7 @@ def main():
     """Main entry point for the unified MCP server."""
 
     # Log server startup
-    logger.info("Starting Unified BorsaMCP server with 28 tools")
+    logger.info("Starting Unified BorsaMCP server")
 
     # Run the server
     app.run()

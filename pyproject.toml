@@ -29,7 +29,7 @@ borsa-mcp = "unified_mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["providers*", "models*"]
+include = ["providers*", "models*", "services*", "tools*", "domain*", "storage*"]
 
 [dependency-groups]
 dev = [
@@ -42,3 +42,6 @@ include-package-data = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "live: tests that call live external data sources",
+]
