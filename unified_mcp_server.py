@@ -1,6 +1,7 @@
 """
 Unified FastMCP server for the Borsa MCP service.
-Consolidates 81 tools into ~20 unified, function-based tools.
+Consolidates 81 legacy tools into 28 unified, function-based tools,
+plus 10 advanced Turkish capital-markets tools (MKK/SPK/Takasbank) — 38 tools total.
 Uses market parameter to route requests to appropriate providers.
 """
 

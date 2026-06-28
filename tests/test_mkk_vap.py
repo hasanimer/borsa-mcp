@@ -18,3 +18,18 @@ def test_mkk_equity_summary_parse():
 def test_stock_level_returns_structured_error():
     data=InvestorService(vap=MkkVapProvider(Client())).top_stocks_by_investor_count()
     assert data['error'] == 'stock_level_investor_count_not_available'
+
+
+class OutOfRangeRatioClient:
+    """Foreign-ratio label followed by a non-ratio (market-value) number."""
+    def get_text(self, url):
+        html='Yabancı Oran ile ilgili Piyasa Değeri 2.500.000 TL'
+        return html, CacheEntry(url, datetime.now(UTC), html, '', 200, False), []
+
+
+def test_mkk_rejects_out_of_range_ownership_ratio():
+    data=MkkVapProvider(OutOfRangeRatioClient()).market_summary()
+    # 2.500.000 is not a plausible 0-100 ratio, so it is discarded rather than
+    # reported as a bogus ownership ratio (and domestic is not derived from it).
+    assert data['foreign_ownership_ratio'] is None
+    assert data['domestic_ownership_ratio'] is None
