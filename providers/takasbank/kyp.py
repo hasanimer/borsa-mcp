@@ -1,10 +1,11 @@
 from __future__ import annotations
 from bs4 import BeautifulSoup
+from domain.enums import KypDataType
 from domain.models import DataQualityMetadata, KypOptions, KypPortfolioRecord, StructuredError
 from domain.normalizers import clean_text, parse_number
 from .client import TAKASBANK_KYP_URL, TakasbankClient
 
-DEFAULT_DATA_TYPES=["Portföy İçerik Dağılımı","Fon Türlerine Göre Portföy Büyüklükleri"]
+DEFAULT_DATA_TYPES=[KypDataType.PORTFOLIO_DISTRIBUTION.value, KypDataType.FUND_TYPE_SIZES.value]
 DEFAULT_INVESTOR_TYPES=["Yatırım Fonları","Emeklilik Fonları","Borsa Yatırım Fonları","Yatırım Ortaklıkları","Girişim Sermayesi Yatırım Fonu","Gayrimenkul Yatırım Fonu"]
 
 class TakasbankKypProvider:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 from bs4 import BeautifulSoup
 from domain.normalizers import clean_text, parse_number
 from domain.models import DataQualityMetadata, StructuredError
@@ -13,7 +14,6 @@ class MkkVapProvider:
         soup = BeautifulSoup(html, "html.parser"); text = clean_text(soup.get_text(" "))
         meta = DataQualityMetadata(source="MKK / VAP", source_url=MKK_VAP_URL, fetched_at=entry.fetched_at, confidence="medium", warnings=["Parsed from MKK/VAP public pages; official formats may change.", *warnings])
         def find_after(labels):
-            import re
             for label in labels:
                 m = re.search(label + r"\D{0,40}([0-9][0-9\.,]*)", text, re.I)
                 if m: return parse_number(m.group(1))
