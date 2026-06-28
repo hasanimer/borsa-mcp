@@ -2,7 +2,7 @@
 
 [![Star History Chart](https://api.star-history.com/svg?repos=saidsurucu/borsa-mcp&type=Date)](https://www.star-history.com/#saidsurucu/borsa-mcp&Date)
 
-Borsa İstanbul (BIST) ve ABD (US) hisseleri, TEFAS fonları, kripto paralar ve döviz/emtia verilerine LLM'ler üzerinden erişim sağlayan [FastMCP](https://gofastmcp.com/) sunucusu. KAP, Yahoo Finance, BtcTurk, Coinbase, borsapy ve TCMB gibi kaynaklardan **26 birleşik araç** ile kapsamlı finansal analiz.
+Borsa İstanbul (BIST) ve ABD (US) hisseleri, TEFAS fonları, kripto paralar ve döviz/emtia verilerine LLM'ler üzerinden erişim sağlayan [FastMCP](https://gofastmcp.com/) sunucusu. KAP, Yahoo Finance, BtcTurk, Coinbase, borsapy ve TCMB gibi kaynaklardan **38 araç** (28 birleşik + 10 gelişmiş Türk sermaye piyasası aracı) ile kapsamlı finansal analiz.
 
 ![ornek](./ornek.jpeg)
 
@@ -68,7 +68,7 @@ Bitcoin'in TRY fiyatını kontrol et
 
 ## 🎯 Temel Özellikler
 
-**28 Birleşik Araç ile Kapsamlı Finansal Analiz (v0.9.0):**
+**38 Araç (28 Birleşik + 10 Gelişmiş) ile Kapsamlı Finansal Analiz:**
 
 * 📈 **Hisse Senetleri (BIST + US):** 758 BIST + tüm NYSE/NASDAQ şirketleri, tek araçla `market` parametresi ile
 * 🔍 **Teknik Tarama:** BIST teknik scanner (RSI, MACD, Supertrend, T3) + US screener (23 preset)
@@ -92,7 +92,7 @@ Bitcoin'in TRY fiyatını kontrol et
 | Bölüm | Açıklama |
 |-------|----------|
 | [🚀 5 Dakikada Başla](#-5-dakikada-başla-remote-mcp) | Kurulum gerektirmez - Remote MCP |
-| [🎯 Temel Özellikler](#-temel-özellikler) | 26 birleşik araç ile kapsamlı finansal analiz |
+| [🎯 Temel Özellikler](#-temel-özellikler) | 38 araç (28 birleşik + 10 gelişmiş) ile kapsamlı finansal analiz |
 | [💻 Gelişmiş Kurulum](#-gelişmiş-kurulum-isteğe-bağlı) | 5ire, Claude Desktop local kurulum |
 | [🛠️ Kullanılabilir Araçlar](#️-kullanılabilir-araçlar-mcp-tools) | BIST, US, Kripto, Döviz, Fon araçları |
 | [🔍 Veri Kaynakları](#-veri-kaynakları--kapsam) | KAP, Yahoo Finance, BtcTurk, Coinbase, TCMB |
@@ -155,7 +155,7 @@ Bu bölüm, Borsa MCP'yi 5ire gibi diğer MCP istemcileriyle local olarak kullan
 
 ## 🛠️ Kullanılabilir Araçlar (MCP Tools)
 
-Bu FastMCP sunucusu LLM modelleri için **26 birleşik araç** sunar. Tüm araçlar `market` parametresi ile BIST ve US piyasalarını destekler.
+Bu FastMCP sunucusu LLM modelleri için **38 araç** sunar: 28 birleşik araç (çoğu `market` parametresi ile BIST ve US piyasalarını destekler) + 10 gelişmiş Türk sermaye piyasası aracı (MKK/SPK/Takasbank, salt Türkiye).
 
 ### Hisse Senedi Araçları (15 araç - BIST + US)
 | Araç | Açıklama | Multi-ticker |
@@ -189,10 +189,11 @@ Bu FastMCP sunucusu LLM modelleri için **26 birleşik araç** sunar. Tüm araç
 | `get_bond_yields` | Devlet tahvil faizleri (TR 2Y, 5Y, 10Y) |
 | `get_sector_comparison` | Sektör karşılaştırması ve ortalama metrikler |
 
-### Fon & Endeks Araçları (2 araç)
+### Fon & Endeks Araçları (3 araç)
 | Araç | Açıklama |
 |------|----------|
 | `get_fund_data` | TEFAS fon verileri + `compare_mode` ile karşılaştırma |
+| `screen_funds` | TEFAS fonlarını tür, kategori ve getiriye göre tarama/filtreleme |
 | `get_index_data` | Borsa endeks verileri (BIST + US) |
 
 ### Makro & Yardım Araçları (5 araç)
@@ -203,6 +204,23 @@ Bu FastMCP sunucusu LLM modelleri için **26 birleşik araç** sunar. Tüm araç
 | `get_screener_help` | Screener presetleri ve filtre dokümantasyonu |
 | `get_scanner_help` | BIST scanner göstergeleri ve presetler |
 | `get_regulations` | Türk yatırım fonu mevzuatı |
+
+### Gelişmiş Türk Sermaye Piyasası Araçları (10 araç - MKK/SPK/Takasbank)
+
+> Salt-okunur resmi kaynak araçları. Her yanıt kaynak meta verisi (`source`, `source_url`, `confidence`, `warnings`) veya kaynak güvenilir biçimde ayrıştırılamadığında yapılandırılmış bir hata döndürür. Ayrıntılar için aşağıdaki [Advanced Turkish Capital Markets Data Sources](#advanced-turkish-capital-markets-data-sources) bölümüne bakın.
+
+| Araç | Açıklama |
+|------|----------|
+| `get_spk_data_sources` | SPK e-Veri Bankası resmi veri kaynağı kataloğu |
+| `get_equity_investor_summary` | MKK/VAP pay piyasası yatırımcı sayısı, piyasa değeri, sahiplik oranları |
+| `get_domestic_foreign_ownership` | MKK/VAP yerli/yabancı sahiplik oranları |
+| `get_top_stocks_by_investor_count` | Hisse bazında yatırımcı sayısı (kaynak yalnızca piyasa geneli veri verdiğinden yapılandırılmış "mevcut değil" hatası döner) |
+| `get_stock_investor_trend` | Sembol bazında yatırımcı sayısı trendi (yapılandırılmış "mevcut değil" hatası döner) |
+| `get_takasbank_kyp_options` | Takasbank KYP filtre seçenekleri (veri tipi, yatırımcı tipi, fon tipi) |
+| `get_institutional_portfolio_distribution` | Takasbank KYP portföy varlık-sınıfı dağılımı |
+| `get_fund_type_portfolio_sizes` | Takasbank KYP fon tipine göre portföy büyüklükleri |
+| `compare_institutional_investor_types` | KYP dağılımını kurumsal yatırımcı kategorileri arasında karşılaştırma |
+| `get_institutional_equity_exposure` | Kurumsal KYP portföylerindeki pay (hisse) payı |
 
 #### 🔑 EVDS Kurulumu
 
@@ -575,7 +593,7 @@ Bu proje MIT Lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosy
 
 ## Advanced Turkish Capital Markets Data Sources
 
-This server now includes read-only tools for official Turkish capital-markets source discovery and investor/portfolio statistics. These tools preserve existing behavior and return source metadata (`source`, `source_url`, `as_of_date`, `fetched_at`, `confidence`, `warnings`) or a structured error when a source cannot be parsed reliably.
+This server includes **10 additional read-only tools** (1 SPK e-Veri Bankası catalogue tool, 4 MKK/VAP investor tools, and 5 Takasbank KYP institutional-portfolio tools) for official Turkish capital-markets source discovery and investor/portfolio statistics — bringing the total to **38 tools** alongside the 28 unified tools. These tools preserve existing behavior and return source metadata (`source`, `source_url`, `as_of_date`, `fetched_at`, `confidence`, `warnings`) or a structured error when a source cannot be parsed reliably.
 
 > Disclaimer: outputs are not investment advice. Official data may be delayed, source pages and dynamic endpoints may change format, and users should verify critical figures with the official publisher.
 

@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **unified MCP (Model Context Protocol) server** for BIST (Istanbul Stock Exchange), US stocks, cryptocurrencies, mutual funds, and FX data. The server consolidates 81 legacy tools into **28 unified, function-based tools** with market routing.
+This is a **unified MCP (Model Context Protocol) server** for BIST (Istanbul Stock Exchange), US stocks, cryptocurrencies, mutual funds, and FX data. The server consolidates 81 legacy tools into **28 unified, function-based tools** with market routing, plus **10 advanced Turkish capital-markets tools** (MKK/SPK/Takasbank) — **38 tools total**.
 
 **⭐ MAJOR CONSOLIDATION (v0.9.0):**
-- **81 tools → 28 unified tools** (65% reduction)
+- **81 tools → 28 unified tools** (65% reduction); +10 advanced MKK/SPK/Takasbank tools = **38 tools total**
 - **Market-based routing**: Single tool handles BIST, US, crypto via `market` parameter
 - **Multi-ticker parallel execution**: 75% faster batch queries
 - **Unified response models**: Consistent data structures across all markets
@@ -27,7 +27,7 @@ This is a **unified MCP (Model Context Protocol) server** for BIST (Istanbul Sto
 The project follows a **unified router pattern** with market-based routing:
 
 ### Core Files
-- **unified_mcp_server.py**: Main FastMCP server with 28 unified tools (v0.9.0+)
+- **unified_mcp_server.py**: Main FastMCP server with 38 tools (28 unified + 10 advanced MKK/SPK/Takasbank tools registered from `tools/spk_sources.py`, `tools/investors.py`, `tools/institutional_portfolios.py`)
 - **providers/market_router.py**: Market routing layer that dispatches to providers
 - **models/unified_base.py**: Unified response models and enums (84 exports)
 
@@ -50,7 +50,7 @@ The project follows a **unified router pattern** with market-based routing:
 ## Key Development Commands
 
 ```bash
-# Run the unified MCP server (28 tools)
+# Run the unified MCP server (38 tools)
 uv run python unified_mcp_server.py
 uv run borsa-mcp  # Entry point
 
@@ -67,7 +67,7 @@ uv run python -c "from unified_mcp_server import app; print('Server OK')"
 uv run python -m pytest tests/ -q
 ```
 
-## Complete Tool Interface (28 Unified Tools)
+## Complete Tool Interface (38 Tools: 28 Unified + 10 Advanced)
 
 ### Stock Tools (15 tools - BIST + US markets)
 | Tool | Description | Multi-ticker |
@@ -116,6 +116,20 @@ uv run python -m pytest tests/ -q
 | `get_screener_help` | Available presets and filter documentation for stock screener (BIST/US) |
 | `get_scanner_help` | Available indicators, operators, and presets for BIST technical scanner |
 | `get_regulations` | Turkish fund regulation documentation |
+
+### Advanced Turkish Capital Markets Tools (10 tools - MKK/SPK/Takasbank)
+| Tool | Description |
+|------|-------------|
+| `get_spk_data_sources` | SPK e-Veri Bankası official data-source catalogue |
+| `get_equity_investor_summary` | MKK/VAP equity-market investor count, market value, ownership ratios |
+| `get_domestic_foreign_ownership` | MKK/VAP domestic vs foreign ownership ratios |
+| `get_top_stocks_by_investor_count` | Stock-level investor counts (returns structured "not available" — market-level source only) |
+| `get_stock_investor_trend` | Per-symbol investor-count trend (returns structured "not available" — market-level source only) |
+| `get_takasbank_kyp_options` | Takasbank KYP filter options (data types, investor types, fund types) |
+| `get_institutional_portfolio_distribution` | Takasbank KYP portfolio asset-class distribution |
+| `get_fund_type_portfolio_sizes` | Takasbank KYP portfolio sizes by fund type |
+| `compare_institutional_investor_types` | Compare KYP distribution across institutional investor categories |
+| `get_institutional_equity_exposure` | Equity-share portion of institutional KYP portfolios |
 
 ---
 
@@ -341,8 +355,24 @@ logger.error("Failed operations")
 
 ## Recent Major Updates
 
+### Advanced Turkish Capital Markets Tools (June 2026)
+- **Tool Count**: 28 → 38 tools. Adds 10 read-only tools covering MKK (Merkezi Kayıt Kuruluşu / VAP), SPK (Sermaye Piyasası Kurulu), and Takasbank, registered in `unified_mcp_server.py` via `_safe_register` over three new modules.
+- **New Layered Architecture** (separate from the `providers/market_router.py` layer):
+  - `domain/`: Pydantic models (`DataQualityMetadata`, `StructuredError`, KYP/investor records), enums, text/number normalizers.
+  - `providers/{mkk,spk,takasbank}/`: BeautifulSoup HTML scrapers over official public pages.
+  - `services/`: orchestration (`InvestorService`, `SpkDataSourceService`, `InstitutionalPortfolioService`).
+  - `tools/`: FastMCP `register(app)` modules wiring services to `@app.tool`.
+  - `storage/cache.py`: SQLite-backed HTTP cache (`SQLiteHttpCache`) with TTL + stale-while-error fallback; cache dir honors `BORSA_MCP_CACHE_DIR` / `XDG_CACHE_HOME` / `LOCALAPPDATA`.
+- **New Tools**:
+  - `tools/spk_sources.py` (1): `get_spk_data_sources` — SPK e-Veri Bankası source catalogue (confidence `high`, TTL 24h).
+  - `tools/investors.py` (4): `get_equity_investor_summary`, `get_domestic_foreign_ownership`, `get_top_stocks_by_investor_count`, `get_stock_investor_trend`. The MKK/VAP source publishes only market-level data, so the two stock-level tools return `StructuredError` (`stock_level_investor_count_not_available`) by design — no volume/market-cap proxy is substituted.
+  - `tools/institutional_portfolios.py` (5): `get_takasbank_kyp_options`, `get_institutional_portfolio_distribution`, `get_fund_type_portfolio_sizes`, `compare_institutional_investor_types`, `get_institutional_equity_exposure` — Takasbank KYP institutional portfolio statistics.
+- **Response Shape**: every success carries `DataQualityMetadata` (`source`, `source_url`, `as_of_date`, `fetched_at`, `confidence`, `warnings`); failures return a `StructuredError`. Fetch failures fall back to a stale cached copy with a warning, raising only when no cache exists (then converted to `*_fetch_failed`); KYP pages that don't yield table rows return `takasbank_kyp_parse_unavailable` (page may be JS-gated).
+- **Tests**: `tests/test_mkk_vap.py`, `tests/test_spk_sources.py`, `tests/test_takasbank_kyp.py`, `tests/test_cache.py`; `tests/test_server_smoke.py` asserts the **38**-tool surface.
+- **Known limitations** (these tools differ from the 28 unified tools): they do **not** route through `providers/response_shaper.py` (no central null-stripping/`classify_tool_error`), and they call blocking synchronous `httpx`/`time.sleep` inside `async def` tools (`providers/http_client.py`) rather than offloading to a thread.
+
 ### LLM-UX Hardening + Legacy Removal (June 2026)
-- **Legacy server removed**: `borsa_mcp_server.py` and the `borsa-mcp-legacy` entry point are gone; the 28-tool unified server is the only interface.
+- **Legacy server removed**: `borsa_mcp_server.py` and the `borsa-mcp-legacy` entry point are gone; the unified server is the only interface.
 - **Response shaping** (`providers/response_shaper.py`): all tool responses are recursively null-stripped; `get_evds_data` observations are capped at 2,000/call (default `limit` now 100); `get_historical_data` auto-downsamples beyond 300 points. Truncation adds `meta: {truncated, guidance}`.
 - **Actionable errors**: `classify_tool_error` maps failures to suggestions (unknown symbol → use search_symbol; missing EVDS_API_KEY → setup hint; rate limit/timeout → retry guidance). EVDS routing now raises on missing params instead of returning error payloads inside successful responses.
 - **Parameter validation**: EVDS action→required-param map enforced up front (and documented in the tool description); `screen_securities` rejects preset+custom_filters together; `get_fund_data` and `get_technical_analysis` warn when flags are ignored.
@@ -713,7 +743,7 @@ logger.error("Failed operations")
 
 ## Tool Count Summary
 
-### Unified Server (v0.9.0+) - 28 Tools
+### Unified Server (v0.9.0+) - 38 Tools (28 Unified + 10 Advanced)
 | Category | Count | Description |
 |----------|-------|-------------|
 | **Stock Tools** | 15 | BIST + US market data (search, profile, financials, technicals) |
@@ -721,10 +751,11 @@ logger.error("Failed operations")
 | **FX & Macro** | 6 | FX rates, economic calendar, bonds, sectors, inflation data, TCMB EVDS |
 | **Fund & Index** | 3 | TEFAS funds, stock screening, stock market indices |
 | **Help & Docs** | 3 | Screener help, scanner help, regulations |
-| **TOTAL** | **28** | **65% reduction from 81 legacy tools** |
+| **Advanced (MKK/SPK/Takasbank)** | 10 | SPK data sources, MKK investor stats/ownership, Takasbank institutional portfolios |
+| **TOTAL** | **38** | **28 unified + 10 advanced Turkish capital-markets tools** |
 
 ### Key Consolidations
-- **81 → 28 tools** via market-based routing
+- **81 → 28 unified tools** via market-based routing, plus **10 advanced MKK/SPK/Takasbank tools** = **38 tools total**
 - **Multi-ticker support**: 7 tools with parallel batch execution
 - **Unified response models**: Consistent structure across all markets
 - **Single entry point**: `uv run borsa-mcp` for unified server

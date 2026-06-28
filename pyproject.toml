@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "borsa-mcp"
 version = "0.8.0"
-description = "Unified MCP Server for BIST, US stocks, crypto, funds, and FX data. 22 consolidated tools."
+description = "Unified MCP Server for BIST, US stocks, crypto, funds, and FX data. 38 tools (28 consolidated + 10 advanced Turkish capital-markets tools)."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
