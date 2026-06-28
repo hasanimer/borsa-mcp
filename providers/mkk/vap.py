@@ -18,9 +18,12 @@ class MkkVapProvider:
                 m = re.search(label + r"\D{0,40}([0-9][0-9\.,]*)", text, re.I)
                 if m: return parse_number(m.group(1))
             return None
+        def ratio(labels):
+            v = find_after(labels)
+            return v if (v is not None and 0 <= v <= 100) else None
         inv = find_after(["pay senedi yatırımcı sayısı", "yatırımcı sayısı", "investor count"])
         mv = find_after(["piyasa değeri", "market value"])
-        foreign = find_after(["yabancı.*?oran", "foreign.*?ratio"])
-        domestic = find_after(["yerli.*?oran", "domestic.*?ratio"])
-        if domestic is None and foreign is not None: domestic = 100 - foreign
+        foreign = ratio(["yabancı.*?oran", "foreign.*?ratio"])
+        domestic = ratio(["yerli.*?oran", "domestic.*?ratio"])
+        if domestic is None and foreign is not None: domestic = round(100 - foreign, 4)
         return {"asset_class":"pay senedi", "investor_count": int(inv) if inv is not None else None, "market_value_try": mv, "domestic_ownership_ratio": domestic, "foreign_ownership_ratio": foreign, "metadata": meta.model_dump(mode="json")}
