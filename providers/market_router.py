@@ -23,6 +23,41 @@ class MarketRouter:
         """Initialize the market router with borsa_client as the underlying service layer."""
         from borsa_client import BorsaApiClient
         self._client = BorsaApiClient()
+        self._tefas_api = None  # lazy: supplementary TEFAS /api/funds client
+
+    def _get_tefas_api(self):
+        """Lazily build the supplementary TEFAS API client (extra source for gaps)."""
+        if self._tefas_api is None:
+            from providers.tefas_api_provider import TefasApiProvider
+            self._tefas_api = TefasApiProvider()
+        return self._tefas_api
+
+    async def _tefas_portfolio_fallback(self, symbol: str):
+        """Try the TEFAS /api/funds distribution endpoint when borsapy has no allocation.
+
+        Returns (portfolio_or_None, warning). portfolio rows are best-effort
+        mapped ({asset_type, weight, raw}); raw is always preserved.
+        """
+        base_warn = (
+            "Portfolio allocation is unavailable from the TEFAS JSON feed since "
+            "the 2026 TEFAS migration to a bot-protected SSR site. To enable "
+            "asset-type breakdown install the borsapy[allocation] extra "
+            "(Scrapling + chromium); for individual holdings use borsapy "
+            "Fund.get_holdings() with an OpenRouter API key."
+        )
+        try:
+            from providers.tefas_api_provider import map_distribution_rows
+            env = await self._get_tefas_api().portfolio_distribution(fund_code=symbol)
+        except Exception as e:
+            logger.debug(f"TEFAS API portfolio fallback errored for {symbol}: {e}")
+            return None, base_warn
+        if env.get("ok") and env.get("result"):
+            mapped = map_distribution_rows(env["result"])
+            if mapped:
+                return mapped, base_warn
+            return None, base_warn
+        reason = env.get("message") or "no data"
+        return None, f"{base_warn} (TEFAS API fallback also returned no data: {reason})"
 
     # --- Helper Methods ---
 
@@ -1831,14 +1866,14 @@ class MarketRouter:
                             for a in allocation
                         ]
                     else:
-                        warnings.append(
-                            "Portfolio allocation is unavailable from the TEFAS JSON "
-                            "feed since the 2026-04 TEFAS migration to an Akamai-protected "
-                            "SSR site. To enable asset-type breakdown install the "
-                            "borsapy[allocation] extra (Scrapling + chromium); for "
-                            "individual holdings use borsapy Fund.get_holdings() with an "
-                            "OpenRouter API key."
-                        )
+                        # borsapy no longer returns allocation after the 2026 TEFAS
+                        # migration. Fall back to the current TEFAS /api/funds
+                        # distribution endpoint as an extra source for this gap.
+                        portfolio, fb_warn = await self._tefas_portfolio_fallback(symbol)
+                        if portfolio:
+                            source = "borsapy+tefas_api"
+                        else:
+                            warnings.append(fb_warn)
 
         except Exception as e:
             logger.warning(f"borsapy fund error for {symbol}: {e}")

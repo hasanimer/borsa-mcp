@@ -37,6 +37,7 @@ The project follows a **unified router pattern** with market-based routing:
   - `yfinance_provider.py`: Complete financial data (BIST + US)
   - `isyatirim_provider.py`: İş Yatırım financial statements and ratios
   - `tefas_provider.py`: TEFAS mutual fund data provider
+  - `tefas_api_provider.py`: supplementary client for the current TEFAS `/api/funds/*` JSON API — extra/fallback source for gaps the borsapy path leaves empty (notably fund portfolio allocation)
   - `btcturk_provider.py`: BtcTurk cryptocurrency provider
   - `coinbase_provider.py`: Coinbase global crypto provider
   - `borsapy_fx_provider.py`: Currency and commodities via borsapy
@@ -354,6 +355,14 @@ logger.error("Failed operations")
 ```
 
 ## Recent Major Updates
+
+### TEFAS Fund API Fallback (June 2026)
+- **New provider**: `providers/tefas_api_provider.py` (`TefasApiProvider`) — a supplementary, **extra/fallback** client for the current TEFAS Next.js JSON API at `https://www.tefas.gov.tr/api/funds/`. It does **not** replace the primary borsapy/Takasbank-Excel/yfinance flow; it fills gaps that path leaves empty.
+- **Endpoints** (request shapes captured from the live site): `fonTurGetir` (umbrella fund types), `fonUnvanGetir` (categories), `fonGnlBlgSiraliGetir` (paged fund list), `dagilimSiraliGetirT` (portfolio distribution). Shared envelope: `{errorCode, errorMessage, resultList, toplamSayi, toplamSayfa}`.
+- **Wiring**: `get_fund_data` (market_router) now, when `include_portfolio=True` and borsapy returns no `allocation` (the standing post-2026-migration gap), calls `_tefas_portfolio_fallback(symbol)` → `dagilimSiraliGetirT`. Returned rows are best-effort mapped to `{asset_type, weight, raw}` (raw always preserved; the populated distribution schema wasn't captured, so fields are heuristic). `source` becomes `borsapy+tefas_api` on success.
+- **Resilience**: requests are offloaded via `asyncio.to_thread`, prime cookies with a page GET, and degrade to a structured `{"ok": False, error}` envelope on bot-protection/non-JSON (`tefas_api_unavailable`), throttling (`tefas_api_throttled`, HTTP 429), upstream `errorMessage` (`tefas_api_error`), or network failure (`tefas_api_fetch_failed`) — never raising into the tool.
+- **Caveat**: TEFAS sits behind bot protection and is egress-blocked from the build sandbox, so this client is verified only against mocked responses (`tests/test_tefas_api.py`, httpx.MockTransport) mirroring captured shapes; live success depends on the deployment environment reaching TEFAS without a WAF challenge.
+
 
 ### Advanced Turkish Capital Markets Tools (June 2026)
 - **Tool Count**: 28 → 38 tools. Adds 10 read-only tools covering MKK (Merkezi Kayıt Kuruluşu / VAP), SPK (Sermaye Piyasası Kurulu), and Takasbank, registered in `unified_mcp_server.py` via `_safe_register` over three new modules.
